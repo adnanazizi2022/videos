@@ -5,18 +5,23 @@
   <title>Auto Camera Email</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin-top: 40px; }
-    video, canvas { display: none; }
+    video, canvas, img { margin-top: 20px; }
+    canvas, img { display: none; border: 1px solid #ccc; }
+    button { padding: 10px 20px; font-size: 16px; margin-top: 20px; }
   </style>
 </head>
 <body>
 
-  <video id="video" width="320" height="240" autoplay></video>
-  <canvas id="canvas" width="320" height="240"></canvas>
+  <h2>Take a Photo</h2>
+  <video id="video" width="320" height="240" autoplay></video><br>
+  <button id="snap">Take Photo</button>
+  <canvas id="canvas" width="320" height="240"></canvas><br>
+  <img id="preview" width="320" height="240" alt="Captured Image" />
 
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script>
     (function(){
-      emailjs.init("p5Vq28AEYWLO8LZ1I"); // Your Public Key
+      emailjs.init("p5Vq28AEYWLO8LZ1I"); // Replace with your EmailJS Public Key
     })();
   </script>
 
@@ -24,15 +29,63 @@
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext('2d');
+    const snapButton = document.getElementById('snap');
+    const previewImage = document.getElementById('preview');
 
-    function startCamera() {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          video.srcObject = stream;
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        console.error("Camera error:", err);
+      });
 
-          setTimeout(() => {
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            stream.getTracks().forEach(track => track.stop());
+    snapButton.addEventListener('click', () => {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL('image/jpeg');
 
-            const imageData = canvas.toDataURL('image/jpeg');
-            uploadToImg
+      // Show image preview
+      previewImage.src = imageData;
+      previewImage.style.display = 'inline';
+
+      // Upload to ImgBB
+      uploadToImgBB(imageData);
+    });
+
+    function uploadToImgBB(imageData) {
+      const formData = new FormData();
+      formData.append("image", imageData.split(',')[1]);
+
+      fetch("https://api.imgbb.com/1/upload?key=6f1ad0885f26436ba1315c5ce76d13ad", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        const imageUrl = data.data.url;
+        sendEmail(imageUrl);
+      })
+      .catch(err => {
+        console.error("Upload failed:", err);
+      });
+    }
+
+    function sendEmail(imageUrl) {
+      const templateParams = {
+        to_name: "Adnan",
+        message: `New photo captured: ${imageUrl}`
+      };
+
+      emailjs.send("service_3b779ys", "template_l1doglh", templateParams)
+        .then(response => {
+          alert("✅ Email sent successfully!");
+          console.log("Email sent!", response.status, response.text);
+        }, err => {
+          alert("❌ Email failed to send.");
+          console.error("Email failed...", err);
+        });
+    }
+  </script>
+
+</body>
+</html>
